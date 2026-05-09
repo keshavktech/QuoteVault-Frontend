@@ -30,10 +30,8 @@ function CreatePage() {
     setLoading(true);
     try {
       const fd = new FormData();
-      const reqBlob = new Blob([JSON.stringify({ quoteText, quoteAuthor })], {
-        type: "application/json",
-      });
-      fd.append("request", reqBlob);
+      fd.append("quoteText", quoteText);
+      fd.append("quoteAuthor", quoteAuthor);
       if (image) fd.append("image", image);
       await api.postForm("/posts", fd);
       toast.success("Quote shared");

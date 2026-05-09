@@ -1,12 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
 import { api, type QuotePost, type SavedPost } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { Bookmark, BookmarkCheck, Trash2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: HomePage,
@@ -42,24 +41,35 @@ function Landing() {
 
 function Feed() {
   const qc = useQueryClient();
+  const { user } = useAuth();
+
   const { data: posts, isLoading, error } = useQuery<QuotePost[]>({
     queryKey: ["posts"],
     queryFn: () => api.get("/posts"),
   });
+
   const { data: saved } = useQuery<SavedPost[]>({
     queryKey: ["saved"],
-    queryFn: () => api.get("/posts/saved"),
+    queryFn: () => api.get("/saved"),
   });
+
   const savedIds = new Set((saved || []).map((s) => s.post?.id));
 
   const save = useMutation({
-    mutationFn: (id: number) => api.post(`/posts/${id}/save`),
+    mutationFn: (id: number) => api.post(`/saved/${id}/save`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["saved"] }); toast.success("Saved"); },
     onError: (e: Error) => toast.error(e.message),
   });
+
   const unsave = useMutation({
-    mutationFn: (id: number) => api.delete(`/posts/${id}/save`),
+    mutationFn: (id: number) => api.delete(`/saved/${id}/save`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["saved"] }); toast.success("Removed"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deletePost = useMutation({
+    mutationFn: (id: number) => api.delete(`/posts/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["posts"] }); toast.success("Deleted"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -81,6 +91,8 @@ function Feed() {
           post={p}
           isSaved={savedIds.has(p.id)}
           onToggleSave={() => (savedIds.has(p.id) ? unsave.mutate(p.id) : save.mutate(p.id))}
+          canDelete={user?.id === p.createdById}
+          onDelete={() => deletePost.mutate(p.id)}
         />
       ))}
     </div>
@@ -88,26 +100,43 @@ function Feed() {
 }
 
 export function QuoteCard({
-  post, isSaved, onToggleSave,
-}: { post: QuotePost; isSaved?: boolean; onToggleSave?: () => void }) {
+  post, isSaved, onToggleSave, canDelete, onDelete,
+}: {
+  post: QuotePost;
+  isSaved?: boolean;
+  onToggleSave?: () => void;
+  canDelete?: boolean;
+  onDelete?: () => void;
+}) {
   return (
     <Card className="overflow-hidden p-0">
       {post.imageUrl && (
-        <img src={post.imageUrl} alt="" className="h-56 w-full object-cover" />
+        <img src={post.imageUrl} alt="" className="h-56 w-full object-contain" />
       )}
       <div className="p-6">
         <blockquote className="font-serif text-xl leading-relaxed text-foreground">
-          “{post.quoteText}”
+          "{post.quoteText}"
         </blockquote>
         <p className="mt-3 text-sm text-muted-foreground">— {post.quoteAuthor}</p>
         <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-          <span>by {post.createdBy?.username ?? "unknown"}</span>
-          {onToggleSave && (
-            <button onClick={onToggleSave} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">
-              {isSaved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
-              {isSaved ? "Saved" : "Save"}
-            </button>
-          )}
+          <span>by {post.createdByUsername ?? "unknown"}</span>
+          <div className="flex items-center gap-2">
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-red-100 text-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete
+              </button>
+            )}
+            {onToggleSave && (
+              <button onClick={onToggleSave} className="inline-flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted">
+                {isSaved ? <BookmarkCheck className="h-4 w-4 text-primary" /> : <Bookmark className="h-4 w-4" />}
+                {isSaved ? "Saved" : "Save"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </Card>

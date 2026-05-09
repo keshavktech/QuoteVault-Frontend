@@ -20,12 +20,12 @@ function SavedPage() {
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery<SavedPost[]>({
     queryKey: ["saved"],
-    queryFn: () => api.get("/posts/saved"),
+    queryFn: () => api.get("/saved"),
     enabled: isAuthenticated,
   });
 
   const unsave = useMutation({
-    mutationFn: (id: number) => api.delete(`/posts/${id}/save`),
+    mutationFn: (id: number) => api.delete(`/saved/${id}/save`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["saved"] }); toast.success("Removed"); },
     onError: (e: Error) => toast.error(e.message),
   });

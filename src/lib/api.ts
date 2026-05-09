@@ -55,5 +55,6 @@ export type QuotePost = {
   imageUrl?: string;
   createdAt: string;
   createdBy: User;
+  createdById: number;    
 };
 export type SavedPost = { id: number; user: User; post: QuotePost; savedAt: string };
